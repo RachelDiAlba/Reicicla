@@ -1,5 +1,6 @@
 const SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vR_apqv4XkUgcgesNHil2lDoBi9A33Fldebpcsj7pXAqZa8caBnySjbwhz7yzpPc5HfUjpmhkRyhCEg/pub?gid=0&single=true&output=csv';
 const MAP_REFRESH_INTERVAL_MS = 60000;
+const OVERLAP_OFFSET_METERS = 18;
 
 let mapInstance = null;
 let markersLayer = null;
@@ -84,14 +85,16 @@ function renderMarkers(reports, preserveView = false) {
   clearMarkers();
 
   const bounds = [];
+  const positionedReports = applyOverlapOffsets(reports);
 
-  reports.forEach(report => {
-    if (!isValidCoordinate(report.lat, report.lng)) return;
+  positionedReports.forEach(report => {
+    if (!isValidCoordinate(report.displayLat, report.displayLng)) return;
 
-    const marker = L.marker([report.lat, report.lng]);
+    const marker = L.marker([report.displayLat, report.displayLng]);
     marker.bindPopup(buildPopup(report));
     marker.addTo(markersLayer);
-    bounds.push([report.lat, report.lng]);
+
+    bounds.push([report.displayLat, report.displayLng]);
   });
 
   if (!bounds.length) return;
@@ -103,6 +106,55 @@ function renderMarkers(reports, preserveView = false) {
   } else {
     mapInstance.fitBounds(bounds, { padding: [30, 30] });
   }
+}
+
+function applyOverlapOffsets(reports) {
+  const grouped = new Map();
+
+  reports.forEach(report => {
+    const key = `${report.lat.toFixed(6)}|${report.lng.toFixed(6)}`;
+    if (!grouped.has(key)) {
+      grouped.set(key, []);
+    }
+    grouped.get(key).push(report);
+  });
+
+  const positioned = [];
+
+  grouped.forEach(group => {
+    if (group.length === 1) {
+      positioned.push({
+        ...group[0],
+        displayLat: group[0].lat,
+        displayLng: group[0].lng
+      });
+      return;
+    }
+
+    group.forEach((report, index) => {
+      const angle = (2 * Math.PI * index) / group.length;
+      const offset = offsetLatLng(report.lat, report.lng, OVERLAP_OFFSET_METERS, angle);
+
+      positioned.push({
+        ...report,
+        displayLat: offset.lat,
+        displayLng: offset.lng
+      });
+    });
+  });
+
+  return positioned;
+}
+
+function offsetLatLng(lat, lng, distanceMeters, angleRadians) {
+  const earthRadius = 6378137;
+  const deltaLat = (distanceMeters * Math.cos(angleRadians)) / earthRadius;
+  const deltaLng = (distanceMeters * Math.sin(angleRadians)) / (earthRadius * Math.cos((Math.PI * lat) / 180));
+
+  return {
+    lat: lat + (deltaLat * 180) / Math.PI,
+    lng: lng + (deltaLng * 180) / Math.PI
+  };
 }
 
 function clearMarkers() {
