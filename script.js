@@ -1,10 +1,10 @@
-const SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vR_apqv4XkUgcgesNHil2lDoBi9A33Fldebpcsj7pXAqZa8caBnySjbwhz7yzpPc5HfUjpmhkRyhCEg/pub?gid=0&single=true&output=csv';
-const MAP_REFRESH_INTERVAL_MS = 60000;
-const OVERLAP_OFFSET_METERS = 18;
+const API_URL = 'https://script.google.com/macros/s/AKfycbz1JMd7IgAScrqjlSZ25QlIkOI6OBxbgtptdrLGXSdJuk6qz2P8MTxWgB_Z-vlZXUY/exec';
+const MAP_REFRESH_INTERVAL_MS = 30000;
 
 let mapInstance = null;
 let markersLayer = null;
 let refreshIntervalId = null;
+let lastPayloadSignature = '';
 
 document.addEventListener('DOMContentLoaded', () => {
   initMapPage();
@@ -15,7 +15,7 @@ function initMapPage() {
   if (!mapElement || typeof L === 'undefined') return;
 
   if (!mapInstance) {
-    mapInstance = L.map('map').setView([8.5, -66.5], 6);
+    mapInstance = L.map('map').setView([10.59901, -66.9346], 11);
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '&copy; OpenStreetMap contributors'
@@ -24,7 +24,7 @@ function initMapPage() {
     markersLayer = L.layerGroup().addTo(mapInstance);
   }
 
-  loadReportsIntoMap();
+  loadReportsIntoMap(false);
 
   if (refreshIntervalId) {
     clearInterval(refreshIntervalId);
@@ -35,71 +35,65 @@ function initMapPage() {
   }, MAP_REFRESH_INTERVAL_MS);
 }
 
-function loadReportsIntoMap(isAutoRefresh = false) {
+async function loadReportsIntoMap(isAutoRefresh = false) {
   const statusElement = document.getElementById('reportes-estado');
-  const csvUrl = buildNoCacheUrl(SHEET_CSV_URL);
 
   if (!isAutoRefresh) {
     updateStatus(statusElement, 'Cargando reportes…');
   }
 
-  fetch(csvUrl)
-    .then(response => {
-      if (!response.ok) {
-        throw new Error('No se pudo cargar el CSV.');
-      }
-      return response.text();
-    })
-    .then(csvText => {
-      const rows = parseCSV(csvText);
+  try {
+    const data = await fetchJson(buildNoCacheUrl(API_URL));
 
-      if (!rows.length) {
-        clearMarkers();
-        updateStatus(statusElement, 'No hay reportes disponibles todavía.');
-        return;
-      }
+    if (!data || data.ok === false) {
+      clearMarkers();
+      updateStatus(statusElement, data && data.error ? data.error : 'No se pudieron cargar los reportes.');
+      return;
+    }
 
-      const reports = rows
-        .map(normalizeReport)
-        .filter(report => report !== null);
+    const reports = (data.rows || [])
+      .map(normalizeReport)
+      .filter(Boolean)
+      .filter(report => isValidCoordinate(report.lat, report.lng));
 
-      if (!reports.length) {
-        clearMarkers();
-        updateStatus(statusElement, 'Aún no hay reportes con coordenadas válidas.');
-        return;
-      }
+    if (!reports.length) {
+      clearMarkers();
+      updateStatus(statusElement, 'Aún no hay reportes con coordenadas válidas.');
+      return;
+    }
 
-      const uniqueReports = deduplicateReports(reports);
-      renderMarkers(uniqueReports, isAutoRefresh);
+    const uniqueReports = deduplicateReports(reports);
+    const signature = buildSignature(uniqueReports, data.updatedAt);
+
+    if (signature === lastPayloadSignature && isAutoRefresh) {
       updateStatus(statusElement, `${uniqueReports.length} reporte(s) cargado(s).`);
-    })
-    .catch(error => {
-      console.error(error);
-      updateStatus(statusElement, 'No se pudieron cargar los reportes en este momento.');
-    });
+      return;
+    }
+
+    lastPayloadSignature = signature;
+    renderMarkers(uniqueReports);
+    updateStatus(statusElement, `${uniqueReports.length} reporte(s) cargado(s).`);
+  } catch (error) {
+    console.error(error);
+    updateStatus(statusElement, 'No se pudieron cargar los reportes en este momento.');
+  }
 }
 
-function renderMarkers(reports, preserveView = false) {
+function renderMarkers(reports) {
   if (!mapInstance || !markersLayer) return;
 
   clearMarkers();
 
   const bounds = [];
-  const positionedReports = applyOverlapOffsets(reports);
 
-  positionedReports.forEach(report => {
-    if (!isValidCoordinate(report.displayLat, report.displayLng)) return;
-
-    const marker = L.marker([report.displayLat, report.displayLng]);
+  reports.forEach(report => {
+    const marker = L.marker([report.lat, report.lng]);
     marker.bindPopup(buildPopup(report));
     marker.addTo(markersLayer);
-
-    bounds.push([report.displayLat, report.displayLng]);
+    bounds.push([report.lat, report.lng]);
   });
 
   if (!bounds.length) return;
-
-  if (preserveView) return;
 
   if (bounds.length === 1) {
     mapInstance.setView(bounds[0], 14);
@@ -108,59 +102,16 @@ function renderMarkers(reports, preserveView = false) {
   }
 }
 
-function applyOverlapOffsets(reports) {
-  const grouped = new Map();
-
-  reports.forEach(report => {
-    const key = `${report.lat.toFixed(6)}|${report.lng.toFixed(6)}`;
-    if (!grouped.has(key)) {
-      grouped.set(key, []);
-    }
-    grouped.get(key).push(report);
-  });
-
-  const positioned = [];
-
-  grouped.forEach(group => {
-    if (group.length === 1) {
-      positioned.push({
-        ...group[0],
-        displayLat: group[0].lat,
-        displayLng: group[0].lng
-      });
-      return;
-    }
-
-    group.forEach((report, index) => {
-      const angle = (2 * Math.PI * index) / group.length;
-      const offset = offsetLatLng(report.lat, report.lng, OVERLAP_OFFSET_METERS, angle);
-
-      positioned.push({
-        ...report,
-        displayLat: offset.lat,
-        displayLng: offset.lng
-      });
-    });
-  });
-
-  return positioned;
-}
-
-function offsetLatLng(lat, lng, distanceMeters, angleRadians) {
-  const earthRadius = 6378137;
-  const deltaLat = (distanceMeters * Math.cos(angleRadians)) / earthRadius;
-  const deltaLng = (distanceMeters * Math.sin(angleRadians)) / (earthRadius * Math.cos((Math.PI * lat) / 180));
-
-  return {
-    lat: lat + (deltaLat * 180) / Math.PI,
-    lng: lng + (deltaLng * 180) / Math.PI
-  };
-}
-
 function clearMarkers() {
   if (markersLayer) {
     markersLayer.clearLayers();
   }
+}
+
+async function fetchJson(url) {
+  const response = await fetch(url, { cache: 'no-store' });
+  if (!response.ok) throw new Error('No se pudo obtener la respuesta.');
+  return await response.json();
 }
 
 function buildNoCacheUrl(url) {
@@ -169,114 +120,40 @@ function buildNoCacheUrl(url) {
 }
 
 function updateStatus(element, message) {
-  if (element) {
-    element.textContent = message;
-  }
-}
-
-function parseCSV(text) {
-  const lines = text
-    .replace(/\r\n/g, '\n')
-    .replace(/\r/g, '\n')
-    .split('\n')
-    .filter(line => line.trim() !== '');
-
-  if (lines.length < 2) return [];
-
-  const headers = splitCSVLine(lines[0]).map(header => header.trim());
-  const rows = [];
-
-  for (let i = 1; i < lines.length; i++) {
-    const values = splitCSVLine(lines[i]);
-    const row = {};
-
-    headers.forEach((header, index) => {
-      row[header] = values[index] ? values[index].trim() : '';
-    });
-
-    rows.push(row);
-  }
-
-  return rows;
-}
-
-function splitCSVLine(line) {
-  const result = [];
-  let current = '';
-  let insideQuotes = false;
-
-  for (let i = 0; i < line.length; i++) {
-    const char = line[i];
-    const nextChar = line[i + 1];
-
-    if (char === '"') {
-      if (insideQuotes && nextChar === '"') {
-        current += '"';
-        i++;
-      } else {
-        insideQuotes = !insideQuotes;
-      }
-    } else if (char === ',' && !insideQuotes) {
-      result.push(current);
-      current = '';
-    } else {
-      current += char;
-    }
-  }
-
-  result.push(current);
-  return result;
+  if (element) element.textContent = message;
 }
 
 function normalizeReport(row) {
-  const lat = parseCoordinate(getField(row, ['Latitud', 'latitud']));
-  const lng = parseCoordinate(getField(row, ['Longitud', 'longitud']));
+  const lat = parseCoordinate(getField(row, ['latitud', 'Latitud']));
+  const lng = parseCoordinate(getField(row, ['longitud', 'Longitud']));
 
-  if (!isValidCoordinate(lat, lng)) return null;
-
-  const fecha = getField(row, ['Submitted at', 'Fecha', 'Fecha de envío', 'Marca temporal', 'Timestamp']);
+  const fecha = getField(row, ['Submitted at', 'submitted at', '📅 Fecha', 'Fecha', 'Timestamp', 'Marca temporal']);
   const fechaDate = parseReportDate(fecha);
 
-  const estado = getField(row, ['Estado']);
-  const municipio = getField(row, ['Municipio o Ciudad']);
-  const sector = getField(row, ['Sector, barrio o zona']);
-  const referencia = getField(row, ['Calle, avenida o referencia cercana']);
-
-  const material = getField(row, [
-    '♻️ ¿Qué tipo de residuos o materiales observas?',
-    '¿Qué tipo de material o residuo observas?',
-    'Tipo de residuo',
-    'Tipo de material',
-    'Material'
+  const referencia = getField(row, ['📍Referencia cercana (recomendado)', 'Referencia cercana', 'Referencia']);
+  const material = getField(row, ['🗑️¿Qué encontraste?', '¿Qué encontraste?', 'Material', 'Tipo de residuo']);
+  const cantidad = getField(row, ['📦 Cantidad aproximada', 'Cantidad aproximada', 'Cantidad']);
+  const riesgo = getField(row, ['⚠️ ¿Representa un riesgo?', 'Representa un riesgo', 'Riesgo']);
+  const riesgoDetalle = getField(row, [
+    'Indique el riesgo',
+    'Indique el riesgo (Bloquea una vía)',
+    'Indique el riesgo (Afecta la salud)',
+    'Indique el riesgo (Puede contaminar áreas naturales)',
+    'Indique el riesgo (Puede causar accidentes)',
+    'Indique el riesgo (Otro)'
   ]);
-
-  const cantidad = getField(row, [
-    '📦 ¿Qué cantidad aproximada hay?',
-    'Cantidad aproximada',
-    'Cantidad aprox',
-    'Volumen aproximado',
-    'Volumen',
-    'Cantidad'
-  ]);
-
-  const foto = getField(row, [
-    '📸 Foto del lugar',
-    'Foto del lugar',
-    'Foto',
-    'Imagen'
-  ]);
+  const foto = getField(row, ['📸 Foto (recomendado)', 'Foto', 'Imagen']);
 
   return {
     lat,
     lng,
     fecha,
     fechaDate,
-    estado,
-    municipio,
-    sector,
     referencia,
     material,
     cantidad,
+    riesgo,
+    riesgoDetalle,
     foto
   };
 }
@@ -320,7 +197,6 @@ function parseReportDate(value) {
     const hours = parseInt(isoLikeMatch[4] || '0', 10);
     const minutes = parseInt(isoLikeMatch[5] || '0', 10);
     const seconds = parseInt(isoLikeMatch[6] || '0', 10);
-
     const parsed = new Date(year, month, day, hours, minutes, seconds);
     if (!Number.isNaN(parsed.getTime())) return parsed;
   }
@@ -337,7 +213,6 @@ function parseReportDate(value) {
     const hours = parseInt(dmyMatch[4] || '0', 10);
     const minutes = parseInt(dmyMatch[5] || '0', 10);
     const seconds = parseInt(dmyMatch[6] || '0', 10);
-
     const parsed = new Date(year, month, day, hours, minutes, seconds);
 
     if (
@@ -361,7 +236,6 @@ function formatReportAge(date) {
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const reportDay = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-
   const diffMs = today.getTime() - reportDay.getTime();
   const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
 
@@ -378,15 +252,32 @@ function deduplicateReports(reports) {
       report.fecha,
       report.lat,
       report.lng,
-      report.estado,
-      report.municipio,
-      report.sector,
-      report.referencia
+      report.referencia,
+      report.material,
+      report.cantidad,
+      report.riesgo,
+      report.riesgoDetalle
     ].join('|');
 
     if (seen.has(key)) return false;
     seen.add(key);
     return true;
+  });
+}
+
+function buildSignature(reports, updatedAt) {
+  return JSON.stringify({
+    updatedAt: updatedAt || '',
+    items: reports.map(r => [
+      r.lat,
+      r.lng,
+      r.fecha,
+      r.referencia,
+      r.material,
+      r.cantidad,
+      r.riesgo,
+      r.riesgoDetalle
+    ])
   });
 }
 
@@ -409,20 +300,23 @@ function buildPopup(report) {
   }
 
   if (report.material) {
-    parts.push(`<p><strong>Tipo de residuo:</strong> ${escapeHtml(report.material)}</p>`);
+    parts.push(`<p><strong>Qué se encontró:</strong> ${escapeHtml(report.material)}</p>`);
   }
 
   if (report.cantidad) {
     parts.push(`<p><strong>Cantidad aprox.:</strong> ${escapeHtml(report.cantidad)}</p>`);
   }
 
-  if (report.sector || report.municipio || report.estado) {
-    const location = [report.sector, report.municipio, report.estado].filter(Boolean).join(', ');
-    parts.push(`<p><strong>Ubicación:</strong> ${escapeHtml(location)}</p>`);
-  }
-
   if (report.referencia) {
     parts.push(`<p><strong>Referencia:</strong> ${escapeHtml(report.referencia)}</p>`);
+  }
+
+  if (report.riesgo) {
+    parts.push(`<p><strong>Riesgo:</strong> ${escapeHtml(report.riesgo)}</p>`);
+  }
+
+  if (report.riesgoDetalle) {
+    parts.push(`<p><strong>Detalle:</strong> ${escapeHtml(report.riesgoDetalle)}</p>`);
   }
 
   if (report.fechaDate) {
