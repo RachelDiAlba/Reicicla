@@ -5,50 +5,342 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Reicicla | Reportar un lugar</title>
   <link rel="stylesheet" href="style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <style>
+    .report-section {
+      display: grid;
+      gap: 1rem;
+    }
+
+    .report-card {
+      padding: 1.25rem;
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      border-radius: 18px;
+      background: #fff;
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.05);
+    }
+
+    .report-title {
+      margin: 0 0 .4rem;
+      font-size: 1.15rem;
+      line-height: 1.25;
+    }
+
+    .report-helper {
+      margin: 0;
+      color: rgba(0, 0, 0, 0.7);
+      font-size: .96rem;
+    }
+
+    .report-map-wrap {
+      margin-top: 1rem;
+    }
+
+    #report-map {
+      width: 100%;
+      height: 420px;
+      min-height: 320px;
+      border-radius: 16px;
+      overflow: hidden;
+      background: #eef2f6;
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      position: relative;
+      z-index: 1;
+      touch-action: pan-x pan-y;
+    }
+
+    .report-status {
+      margin-top: .85rem;
+      font-size: .95rem;
+      color: rgba(0, 0, 0, 0.72);
+      min-height: 1.4em;
+    }
+
+    .report-status.error {
+      color: #b42318;
+      font-weight: 600;
+    }
+
+    .coord-hidden {
+      position: absolute;
+      left: -9999px;
+      width: 1px;
+      height: 1px;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .report-cta-wrap {
+      display: grid;
+      gap: .75rem;
+      margin-top: 1rem;
+    }
+
+    .report-confirm {
+      appearance: none;
+      border: 1px solid rgba(0, 0, 0, 0.12);
+      border-radius: 999px;
+      background: #f5f6f7;
+      color: #111;
+      font-weight: 700;
+      padding: .8rem 1rem;
+      line-height: 1;
+      width: fit-content;
+      cursor: pointer;
+      transition: opacity 180ms ease, transform 180ms ease, background 180ms ease, border-color 180ms ease, color 180ms ease;
+    }
+
+    .report-confirm:hover {
+      background: #eceef0;
+      border-color: rgba(0, 0, 0, 0.18);
+    }
+
+    .report-confirm.is-confirmed {
+      background: #2f8f4e;
+      border-color: #2f8f4e;
+      color: #fff;
+    }
+
+    .report-confirm.is-confirmed:hover {
+      background: #2f8f4e;
+      border-color: #2f8f4e;
+    }
+
+    .report-confirm:disabled {
+      opacity: .45;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .report-note {
+      margin: 0;
+      font-size: .92rem;
+      color: rgba(0, 0, 0, 0.65);
+    }
+
+    @media (max-width: 640px) {
+      .report-card {
+        padding: 1rem;
+        border-radius: 16px;
+      }
+
+      #report-map {
+        height: 340px;
+        min-height: 280px;
+      }
+
+      .report-confirm {
+        width: 100%;
+      }
+    }
+  </style>
 </head>
 
 <body>
   <main class="page">
     <div class="container">
       <header class="site-header">
-        <div class="logo" aria-hidden="true">📍</div>
-        <h1>Reportar un lugar</h1>
+        <h1>Reportar</h1>
       </header>
 
+      <nav class="quick-nav" aria-label="Navegación principal">
+        <a class="quick-link" href="index.html">Inicio</a>
+        <a class="quick-link" href="reportar.html" aria-current="page">Reportar</a>
+        <a class="quick-link" href="materiales.html">Materiales</a>
+        <a class="quick-link" href="reportes.html">Mapa</a>
+      </nav>
+
       <section class="hero" aria-labelledby="reportar-title">
-        <h2 id="reportar-title">Compartir lo que ves puede cambiar el destino de un residuo.</h2>
+        <h2 id="reportar-title">Compartir lo que ves puede cambiar el destino de un residuo</h2>
       </section>
 
+      <section class="form-section report-section" aria-labelledby="form-title">
+        <div class="report-card">
+          <h3 id="form-title" class="report-title">Formulario de reportes</h3>
+          <p class="report-helper">Acerca o aleja el mapa y toca el punto exacto para colocar el marcador. Después <strong>confirma</strong> la ubicación.</p>
 
-      <section class="form-section" aria-labelledby="form-title">
-        <h3 id="form-title">Formulario de reporte</h3>
-        <p class="form-helper">
-          Completa este formulario para registrar una situación que necesita atención.
-        </p>
+          <div class="report-map-wrap">
+            <div id="report-map" aria-label="Mapa para seleccionar la ubicación del reporte"></div>
+            <p id="map-status" class="report-status">Todavía no se ha seleccionado un punto.</p>
+          </div>
 
-        <div class="tally-embed-wrapper">
-          <iframe
-            data-tally-src="https://tally.so/embed/kd19Dd?alignLeft=1&hideTitle=1&transparentBackground=1&dynamicHeight=1"
-            loading="lazy"
-            width="100%"
-            height="520"
-            frameborder="0"
-            marginheight="0"
-            marginwidth="0"
-            title="Reporta una situación que necesita atención"
-          ></iframe>
+          <input type="hidden" id="latitud" name="latitud" class="coord-hidden" value="">
+          <input type="hidden" id="longitud" name="longitud" class="coord-hidden" value="">
+
+          <div class="report-cta-wrap">
+            <button id="confirm-location" class="report-confirm" type="button" disabled>Confirmar ubicación</button>
+            <p class="report-note"></p>
+          </div>
+        </div>
+
+        <div class="report-card">
+          <p class="report-helper" style="margin-bottom: 1rem;"></p>
+
+          <div class="tally-embed-wrapper">
+            <iframe
+              id="tally-form"
+              data-base-src="https://tally.so/embed/A7YJJy?alignLeft=1&hideTitle=1&transparentBackground=1&dynamicHeight=1"
+              loading="lazy"
+              width="100%"
+              height="520"
+              frameborder="0"
+              marginheight="0"
+              marginwidth="0"
+              title="Formulario de reportes"
+            ></iframe>
+          </div>
         </div>
       </section>
 
       <nav class="page-links" aria-label="Navegación secundaria">
         <a class="secondary-link" href="index.html">Volver al inicio</a>
-        <a class="secondary-link" href="reportes.html">Ver reportes en el mapa</a>
+        <a class="secondary-link" href="reportes.html">Explorar mapa de hallazgos</a>
       </nav>
     </div>
   </main>
 
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script>
-    var d=document,w="https://tally.so/widgets/embed.js",v=function(){"undefined"!=typeof Tally?Tally.loadEmbeds():d.querySelectorAll("iframe[data-tally-src]:not([src])").forEach((function(e){e.src=e.dataset.tallySrc}))};if("undefined"!=typeof Tally)v();else if(d.querySelector('script[src="'+w+'"]')==null){var s=d.createElement("script");s.src=w,s.onload=v,s.onerror=v,d.body.appendChild(s);}
+    (function () {
+      var TALLY_SCRIPT_SRC = "https://tally.so/widgets/embed.js";
+      var map = null;
+      var marker = null;
+      var latInput = document.getElementById("latitud");
+      var lngInput = document.getElementById("longitud");
+      var statusEl = document.getElementById("map-status");
+      var tallyIframe = document.getElementById("tally-form");
+      var confirmButton = document.getElementById("confirm-location");
+      var tallyLoaded = false;
+
+      function setStatus(message, isError) {
+        statusEl.textContent = message;
+        statusEl.className = "report-status" + (isError ? " error" : "");
+      }
+
+      function updateConfirmState() {
+        confirmButton.disabled = !(latInput.value && lngInput.value);
+      }
+
+      function updateHiddenFields(lat, lng) {
+        var fixedLat = Number(lat).toFixed(6);
+        var fixedLng = Number(lng).toFixed(6);
+
+        latInput.value = fixedLat;
+        lngInput.value = fixedLng;
+
+        setStatus("Punto seleccionado: " + fixedLat + ", " + fixedLng, false);
+        updateConfirmState();
+      }
+
+      function placeMarker(latlng) {
+        if (marker) {
+          marker.setLatLng(latlng);
+        } else {
+          marker = L.marker(latlng, { draggable: true }).addTo(map);
+          marker.on("dragend", function (ev) {
+            var pos = ev.target.getLatLng();
+            updateHiddenFields(pos.lat, pos.lng);
+          });
+        }
+
+        updateHiddenFields(latlng.lat, latlng.lng);
+      }
+
+      function initMap() {
+        if (typeof L === "undefined") return;
+
+        map = L.map("report-map", {
+  scrollWheelZoom: true,
+  zoomControl: true,
+  maxZoom: 21
+}).setView([10.59901, -66.9346], 15);
+
+L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+  attribution: '&copy; OpenStreetMap contributors',
+  maxNativeZoom: 19,
+  maxZoom: 21
+}).addTo(map);
+
+        map.on("click", function (e) {
+          placeMarker(e.latlng);
+        });
+
+        setTimeout(function () {
+          map.invalidateSize();
+        }, 250);
+      }
+
+      function ensureTallyScript(callback) {
+        if (window.Tally && typeof window.Tally.loadEmbeds === "function") {
+          tallyLoaded = true;
+          callback();
+          return;
+        }
+
+        if (document.querySelector('script[src="' + TALLY_SCRIPT_SRC + '"]')) {
+          callback();
+          return;
+        }
+
+        var s = document.createElement("script");
+        s.src = TALLY_SCRIPT_SRC;
+        s.onload = function () {
+          tallyLoaded = true;
+          callback();
+        };
+        s.onerror = function () {
+          setStatus("No se pudo cargar el formulario en este momento.", true);
+        };
+        document.body.appendChild(s);
+      }
+
+      function renderTallyEmbedWithCoordinates() {
+        var base = tallyIframe.getAttribute("data-base-src") || "";
+        var parts = base.split("?");
+        var urlBase = parts[0];
+        var params = new URLSearchParams(parts[1] || "");
+
+        if (latInput.value && lngInput.value) {
+          params.set("latitud", latInput.value);
+          params.set("longitud", lngInput.value);
+        }
+
+        tallyIframe.src = urlBase + "?" + params.toString();
+
+        ensureTallyScript(function () {
+          if (window.Tally && typeof window.Tally.loadEmbeds === "function") {
+            window.Tally.loadEmbeds();
+          }
+        });
+      }
+
+      confirmButton.addEventListener("click", function () {
+        if (!latInput.value || !lngInput.value) {
+          setStatus("Debes seleccionar una ubicación en el mapa antes de continuar.", true);
+          return;
+        }
+
+        confirmButton.classList.add("is-confirmed");
+        confirmButton.textContent = "Confirmada";
+        setStatus("Ubicación confirmada. Ahora completa el formulario.", false);
+        renderTallyEmbedWithCoordinates();
+      });
+
+      document.addEventListener("DOMContentLoaded", function () {
+        initMap();
+        ensureTallyScript(function () {
+          renderTallyEmbedWithCoordinates();
+        });
+        setStatus("Todavía no se ha seleccionado un punto.", false);
+        updateConfirmState();
+      });
+
+      window.addEventListener("resize", function () {
+        if (map) map.invalidateSize();
+      });
+    })();
   </script>
 </body>
 </html>
