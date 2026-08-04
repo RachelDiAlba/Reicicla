@@ -3,23 +3,146 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Reicicla | Reportes en el mapa</title>
+  <title>Reicicla | Mapa de hallazgos</title>
   <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+  <style>
+    .map-status {
+      margin: 0.75rem 0 1rem;
+      font-size: 0.95rem;
+      color: rgba(0, 0, 0, 0.72);
+      min-height: 1.4em;
+    }
 
-  <link
-    rel="stylesheet"
-    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
-    crossorigin=""
-  >
+    .map-status.error {
+      color: #b42318;
+      font-weight: 600;
+    }
+
+    #map {
+      width: 100%;
+      height: 560px;
+      min-height: 320px;
+      border-radius: 16px;
+      overflow: hidden;
+      background: #eef2f6;
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      position: relative;
+      z-index: 1;
+    }
+
+    .map-popup {
+      font-size: 0.94rem;
+      line-height: 1.45;
+      max-width: 280px;
+    }
+
+    .map-popup strong {
+      display: block;
+      margin-bottom: 0.15rem;
+    }
+
+    .map-popup .popup-row {
+      margin: 0.35rem 0;
+    }
+
+    .map-popup img {
+      display: block;
+      width: 100%;
+      height: auto;
+      border-radius: 12px;
+      margin-bottom: 0.6rem;
+      border: 1px solid rgba(0, 0, 0, 0.08);
+    }
+
+    .map-popup .muted {
+      color: rgba(0, 0, 0, 0.65);
+      font-size: 0.9rem;
+    }
+
+    .report-popup {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      max-width: 300px;
+    }
+
+    .report-popup__image {
+      width: 100%;
+      aspect-ratio: 16 / 10;
+      border-radius: 12px;
+      overflow: hidden;
+      background: #edf3ec;
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      flex-shrink: 0;
+    }
+
+    .report-popup__image img {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: center;
+      margin: 0;
+      border: 0;
+      border-radius: 0;
+    }
+
+    .report-popup__header {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .report-popup__title {
+      font-size: 1rem;
+      line-height: 1.3;
+      font-weight: 700;
+      color: #1f2937;
+    }
+
+    .report-popup__meta {
+      display: grid;
+      gap: 8px;
+    }
+
+    .report-popup__row {
+      padding: 8px 10px;
+      border-radius: 10px;
+      background: rgba(46, 125, 50, 0.05);
+      border: 1px solid rgba(46, 125, 50, 0.08);
+    }
+
+    .report-popup__row strong {
+      display: block;
+      margin-bottom: 2px;
+      color: #2e7d32;
+      font-size: 0.8rem;
+      line-height: 1.2;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+
+    .report-popup__row span {
+      display: block;
+      color: #263238;
+      line-height: 1.45;
+      word-break: break-word;
+    }
+
+    .report-popup__muted {
+      color: rgba(0, 0, 0, 0.55);
+      font-size: 0.82rem;
+      line-height: 1.35;
+      padding-top: 2px;
+    }
+  </style>
 </head>
-
 <body>
   <main class="page">
     <div class="container container-wide">
       <header class="site-header">
-        <div class="logo" aria-hidden="true">🗺️</div>
-        <h1>Reportes en el mapa</h1>
+        <h1>Mapa de hallazgos</h1>
       </header>
 
       <nav class="quick-nav" aria-label="Navegación principal">
@@ -30,65 +153,239 @@
       </nav>
 
       <section class="hero" aria-labelledby="mapa-title">
-        <h2 id="mapa-title">Explora la información registrada.</h2>
-    
+        <h2 id="mapa-title">Explora la información registrada</h2>
       </section>
 
       <section class="info-box" aria-labelledby="como-leer-title">
         <h3 id="como-leer-title">Cómo usar este mapa</h3>
         <ul>
-          <li>Toca o haz clic en un punto para ver el detalle del reporte.</li>
-          <li>Los reportes pueden incluir ubicación, categoría, fotos u observaciones.</li>
           <li>Arrastra el mapa para moverte y usa el zoom para acercarte a una zona.</li>
+          <li>Toca o haz clic en un punto para ver el detalle del reporte.</li>
         </ul>
       </section>
 
       <section class="purpose-box" aria-labelledby="proposito-title">
         <h3 id="proposito-title">Qué permite ver</h3>
-        <p>
-          Este mapa muestra información reportada para orientar observación y seguimiento.
-        </p>
+        <p>Pines informativos con la ubicación y detalles de cada hallazgo reportado para facilitar su seguimiento.</p>
       </section>
 
       <section class="map-section" aria-labelledby="map-section-title">
         <div class="map-header">
-          <h3 id="map-section-title">Mapa de reportes</h3>
-          <a class="secondary-link" href="reportar.html">Enviar un reporte</a>
+          <h3 id="map-section-title">Mapa de hallazgos</h3>
+          <a class="secondary-link" href="reportar.html">Reportar un hallazgo</a>
         </div>
 
-        <p id="reportes-estado" class="map-status" aria-live="polite">Cargando reportes…</p>
-
-        <div id="map" class="map-canvas" aria-label="Mapa de reportes"></div>
-
-        <p class="map-note">
-          Si acabas de enviar un reporte, puede tardar alrededor de 1 minuto en reflejarse en el mapa.
-        </p>
+        <p id="reportes-estado" class="map-status" aria-live="polite">Cargando hallazgos…</p>
+        <div id="map" class="map-canvas" aria-label="Mapa de hallazgos"></div>
+        <p class="map-note">Si acabas de enviar un reporte, puede tardar alrededor de 1 minuto en reflejarse en el mapa.</p>
       </section>
 
       <section class="info-box" aria-labelledby="important-title">
         <h3 id="important-title">Importante</h3>
-        <p>
-          <ul>
+        <ul>
           <li>El mapa no reemplaza la evaluación en terreno, pero sí ayuda a reconocer patrones, ubicar reportes y organizar mejor la información disponible.</li>
-          <li>Esta visualización es informativa y puede crecer a medida que entren más reportes.</li>
+          <li>Esta visualización es informativa y puede crecer a medida que se ingresen más reportes.</li>
         </ul>
-        </p>
       </section>
 
       <nav class="page-links" aria-label="Navegación secundaria">
         <a class="secondary-link" href="index.html">Volver al inicio</a>
-        <a class="secondary-link" href="materiales.html">Consultar materiales</a>
-        <a class="secondary-link" href="reportar.html">Hacer un reporte</a>
+        <a class="secondary-link" href="materiales.html">Ver guía de materiales</a>
+        <a class="secondary-link" href="reportar.html">Reportar un hallazgo</a>
       </nav>
     </div>
   </main>
 
-  <script
-    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
-    crossorigin=""
-    defer
-  ></script>
-  <script src="script.js" defer></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin="" defer></script>
+  <script>
+    (function () {
+      var MAP_CENTER = [10.59901, -66.9346];
+      var MAP_ZOOM = 15;
+      var DATA_URL = "https://script.google.com/macros/s/AKfycbzngGSc4E87DKfndis9zggsHgrbOFdpVk9Zf6jtNVcJ-nSapB5cqeGpp-EubjLmf-aR/exec";
+      var map;
+      var markersLayer;
+      var statusEl = document.getElementById("reportes-estado");
+      var loadToken = 0;
+
+      function setStatus(message, isError) {
+        statusEl.textContent = message;
+        statusEl.className = "map-status" + (isError ? " error" : "");
+      }
+
+      function escapeHtml(value) {
+        return String(value == null ? "" : value)
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#39;");
+      }
+
+      function normalizeText(value) {
+        return String(value == null ? "" : value).trim();
+      }
+
+      function parseCoordinate(value, axis) {
+        if (value === null || value === undefined || value === "") return null;
+        var raw = String(value).trim().replace(",", ".");
+        var n = Number(raw);
+        if (!isFinite(n)) return null;
+        if (n === 0) return null;
+        if (Math.abs(n) > 180) n = n / 1000000;
+        if (axis === "lat" && Math.abs(n) > 90) return null;
+        if (axis === "lng" && Math.abs(n) > 180) return null;
+        return n;
+      }
+
+      function formatReportedTime(value) {
+        if (!value) return "";
+        var text = String(value).trim();
+        if (!text) return "";
+        var date = new Date(text);
+        if (isNaN(date.getTime())) return "Reportado";
+        var now = new Date();
+        var startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        var startOfDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+        var diffDays = Math.floor((startOfToday - startOfDate) / 86400000);
+        if (diffDays <= 0) return "Reportado hoy";
+        if (diffDays === 1) return "Reportado hace 1 día";
+        return "Reportado hace " + diffDays + " días";
+      }
+
+      function buildPopupContent(report) {
+        var parts = [];
+        var meta = [];
+
+        if (report.foto) {
+          parts.push('<div class="report-popup__image"><img src="' + escapeHtml(report.foto) + '" alt="Foto del reporte"></div>');
+        }
+
+        if (report.referenciaCercana) {
+          meta.push('<div class="report-popup__row"><strong>Referencia cercana</strong><span>' + escapeHtml(report.referenciaCercana) + '</span></div>');
+        }
+
+        meta.push('<div class="report-popup__row"><strong>Qué se encontró</strong><span>' + escapeHtml(report.queEncontraste || "Sin dato") + '</span></div>');
+        meta.push('<div class="report-popup__row"><strong>Cantidad aproximada</strong><span>' + escapeHtml(report.cantidadAproximada || "Sin dato") + '</span></div>');
+        meta.push('<div class="report-popup__row"><strong>¿Representa un riesgo?</strong><span>' + escapeHtml(report.representaRiesgo || "No especificado") + '</span></div>');
+
+        if (report.reportedLabel) {
+          parts.push('<div class="report-popup__muted">' + escapeHtml(report.reportedLabel) + '</div>');
+        }
+
+        return '<div class="report-popup">' + parts.join("") + '<div class="report-popup__meta">' + meta.join("") + '</div></div>';
+      }
+
+      function parseReport(item) {
+        var lat = parseCoordinate(item.latitud, "lat");
+        var lng = parseCoordinate(item.longitud, "lng");
+        if (lat === null || lng === null) return null;
+        return {
+          lat: lat,
+          lng: lng,
+          foto: normalizeText(item.foto || item["📸 Foto (recomendado)"] || ""),
+          referenciaCercana: normalizeText(item.referenciaCercana || item["📍Referencia cercana (recomendado)"] || ""),
+          queEncontraste: normalizeText(item.queEncontraste || item["🗑️¿Qué encontraste?"] || ""),
+          cantidadAproximada: normalizeText(item.cantidadAproximada || item["📦 Cantidad aproximada"] || ""),
+          representaRiesgo: normalizeText(item.representaRiesgo || item["⚠️ ¿Representa un riesgo?"] || ""),
+          reportedLabel: formatReportedTime(item.submittedAt || item["Submitted at"] || "")
+        };
+      }
+
+      function createMarker(report) {
+        var marker = L.marker([report.lat, report.lng], { riseOnHover: true });
+        marker.bindPopup(buildPopupContent(report), {
+          maxWidth: 320,
+          closeButton: true,
+          autoPan: true
+        });
+        marker.addTo(markersLayer);
+        return marker;
+      }
+
+      function fitMapToMarkers(markers) {
+        if (!markers.length) {
+          map.setView(MAP_CENTER, MAP_ZOOM);
+          return;
+        }
+        if (markers.length === 1) {
+          map.setView(markers[0].getLatLng(), 18);
+          return;
+        }
+        var group = L.featureGroup(markers);
+        map.fitBounds(group.getBounds().pad(0.25));
+      }
+
+      function renderReports(rows) {
+        markersLayer.clearLayers();
+        var validReports = (rows || []).map(parseReport).filter(Boolean);
+        if (!validReports.length) {
+          setStatus("No hay hallazgos válidos para mostrar en el mapa.", false);
+          map.setView(MAP_CENTER, MAP_ZOOM);
+          return;
+        }
+        var markers = [];
+        for (var i = 0; i < validReports.length; i++) {
+          markers.push(createMarker(validReports[i]));
+        }
+        setTimeout(function () {
+          map.invalidateSize();
+          fitMapToMarkers(markers);
+        }, 120);
+        setStatus("Se cargaron " + validReports.length + " hallazgo(s).", false);
+      }
+
+      function loadReports() {
+        var currentToken = ++loadToken;
+        setStatus("Cargando hallazgos…", false);
+        fetch(DATA_URL, { cache: "no-store" })
+          .then(function (response) {
+            if (!response.ok) throw new Error("HTTP " + response.status);
+            return response.json();
+          })
+          .then(function (data) {
+            if (currentToken !== loadToken) return;
+            if (!data || data.ok === false) {
+              throw new Error(data && data.error ? data.error : "Respuesta inválida");
+            }
+            renderReports(data.rows || []);
+          })
+          .catch(function (err) {
+            if (currentToken !== loadToken) return;
+            console.error(err);
+            setStatus("No se pudieron cargar los hallazgos. Revisa la URL del Apps Script y que esté público.", true);
+          });
+      }
+
+      function initMap() {
+        if (typeof L === "undefined") {
+          setStatus("No se pudo cargar Leaflet.", true);
+          return;
+        }
+
+        map = L.map("map", {
+          scrollWheelZoom: true,
+          zoomControl: true,
+          maxZoom: 21
+        }).setView(MAP_CENTER, MAP_ZOOM);
+
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+          attribution: '&copy; OpenStreetMap contributors',
+          maxNativeZoom: 19,
+          maxZoom: 21
+        }).addTo(map);
+
+        markersLayer = L.layerGroup().addTo(map);
+
+        setTimeout(function () {
+          map.invalidateSize();
+        }, 300);
+
+        loadReports();
+        setInterval(loadReports, 30000);
+      }
+
+      document.addEventListener("DOMContentLoaded", initMap);
+    })();
+  </script>
 </body>
 </html>
