@@ -201,7 +201,7 @@
     (function () {
       var MAP_CENTER = [10.59901, -66.9346];
       var MAP_ZOOM = 15;
-      var DATA_URL = "https://script.google.com/macros/s/AKfycbzngGSc4E87DKfndis9zggsHgrbOFdpVk9Zf6jtNVcJ-nSapB5cqeGpp-EubjLmf-aR/exec";
+      var DATA_URL = "https://script.google.com/macros/s/AKfycbyqQqoejHyMBCqZPe1_dVtIPPf-14GTdAfAIT07u1bKFDJJJSFWFGBrIuTfglLCHpeE/exec";
       var map;
       var markersLayer;
       var statusEl = document.getElementById("reportes-estado");
@@ -282,11 +282,11 @@
         return {
           lat: lat,
           lng: lng,
-          foto: normalizeText(item.foto || item["📸 Foto (recomendado)"] || ""),
-          referenciaCercana: normalizeText(item.referenciaCercana || item["📍Referencia cercana (recomendado)"] || ""),
-          queEncontraste: normalizeText(item.queEncontraste || item["🗑️¿Qué encontraste?"] || ""),
-          cantidadAproximada: normalizeText(item.cantidadAproximada || item["📦 Cantidad aproximada"] || ""),
-          representaRiesgo: normalizeText(item.representaRiesgo || item["⚠️ ¿Representa un riesgo?"] || ""),
+          foto: normalizeText(item.foto || item["Foto (recomendado)"] || ""),
+          referenciaCercana: normalizeText(item.referenciaCercana || item["Referencia cercana (recomendado)"] || ""),
+          queEncontraste: normalizeText(item.queEncontraste || item["¿Qué encontraste?"] || ""),
+          cantidadAproximada: normalizeText(item.cantidadAproximada || item["Cantidad aproximada"] || ""),
+          representaRiesgo: normalizeText(item.representaRiesgo || item["¿Representa un riesgo?"] || ""),
           reportedLabel: formatReportedTime(item.submittedAt || item["Submitted at"] || "")
         };
       }
