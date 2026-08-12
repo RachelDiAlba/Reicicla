@@ -3,11 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
   <title>Reicicla | Reportar un lugar</title>
+
   <link rel="stylesheet" href="style.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+
   <style>
     .report-section {
       display: grid;
@@ -89,7 +92,12 @@
       line-height: 1;
       width: fit-content;
       cursor: pointer;
-      transition: opacity 180ms ease, transform 180ms ease, background 180ms ease, border-color 180ms ease, color 180ms ease;
+      transition:
+        opacity 180ms ease,
+        transform 180ms ease,
+        background 180ms ease,
+        border-color 180ms ease,
+        color 180ms ease;
     }
 
     .report-confirm:hover {
@@ -118,6 +126,18 @@
       margin: 0;
       font-size: .92rem;
       color: rgba(0, 0, 0, 0.65);
+    }
+
+    .tally-embed-wrapper {
+      width: 100%;
+    }
+
+    .tally-embed-wrapper iframe {
+      display: block;
+      width: 100%;
+      height: 520px;
+      border: 0;
+      margin: 0;
     }
 
     @media (max-width: 640px) {
@@ -153,24 +173,60 @@
       </nav>
 
       <section class="hero" aria-labelledby="reportar-title">
-        <h2 id="reportar-title">Compartir lo que ves puede cambiar el destino de un residuo</h2>
+        <h2 id="reportar-title">
+          Compartir lo que ves puede cambiar el destino de un residuo
+        </h2>
       </section>
 
       <section class="form-section report-section" aria-labelledby="form-title">
         <div class="report-card">
-          <h3 id="form-title" class="report-title">Formulario de reportes</h3>
-          <p class="report-helper">Acerca o aleja el mapa y toca el punto exacto para colocar el marcador. Después <strong>confirma</strong> la ubicación.</p>
+          <h3 id="form-title" class="report-title">
+            Formulario de reportes
+          </h3>
+
+          <p class="report-helper">
+            Acerca o aleja el mapa y toca el punto exacto para colocar el
+            marcador. Después <strong>confirma</strong> la ubicación.
+          </p>
 
           <div class="report-map-wrap">
-            <div id="report-map" aria-label="Mapa para seleccionar la ubicación del reporte"></div>
-            <p id="map-status" class="report-status">Todavía no se ha seleccionado un punto.</p>
+            <div
+              id="report-map"
+              role="region"
+              aria-label="Mapa para seleccionar la ubicación del reporte"
+            ></div>
+
+            <p id="map-status" class="report-status">
+              Todavía no se ha seleccionado un punto.
+            </p>
           </div>
 
-          <input type="hidden" id="latitud" name="latitud" class="coord-hidden" value="">
-          <input type="hidden" id="longitud" name="longitud" class="coord-hidden" value="">
+          <input
+            type="hidden"
+            id="latitud"
+            name="latitud"
+            class="coord-hidden"
+            value=""
+          >
+
+          <input
+            type="hidden"
+            id="longitud"
+            name="longitud"
+            class="coord-hidden"
+            value=""
+          >
 
           <div class="report-cta-wrap">
-            <button id="confirm-location" class="report-confirm" type="button" disabled>Confirmar ubicación</button>
+            <button
+              id="confirm-location"
+              class="report-confirm"
+              type="button"
+              disabled
+            >
+              Confirmar ubicación
+            </button>
+
             <p class="report-note"></p>
           </div>
         </div>
@@ -183,11 +239,7 @@
               id="tally-form"
               data-base-src="https://tally.so/embed/A7YJJy?alignLeft=1&hideTitle=1&transparentBackground=1&dynamicHeight=1"
               loading="lazy"
-              width="100%"
               height="520"
-              frameborder="0"
-              marginheight="0"
-              marginwidth="0"
               title="Formulario de reportes"
             ></iframe>
           </div>
@@ -195,18 +247,25 @@
       </section>
 
       <nav class="page-links" aria-label="Navegación secundaria">
-        <a class="secondary-link" href="index.html">Volver al inicio</a>
-        <a class="secondary-link" href="reportes.html">Explorar mapa de hallazgos</a>
+        <a class="secondary-link" href="index.html">
+          Volver al inicio
+        </a>
+
+        <a class="secondary-link" href="reportes.html">
+          Explorar mapa de hallazgos
+        </a>
       </nav>
     </div>
   </main>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
   <script>
     (function () {
       var TALLY_SCRIPT_SRC = "https://tally.so/widgets/embed.js";
       var map = null;
       var marker = null;
+
       var latInput = document.getElementById("latitud");
       var lngInput = document.getElementById("longitud");
       var statusEl = document.getElementById("map-status");
@@ -216,11 +275,15 @@
 
       function setStatus(message, isError) {
         statusEl.textContent = message;
-        statusEl.className = "report-status" + (isError ? " error" : "");
+        statusEl.className =
+          "report-status" + (isError ? " error" : "");
       }
 
       function updateConfirmState() {
-        confirmButton.disabled = !(latInput.value && lngInput.value);
+        confirmButton.disabled = !(
+          latInput.value &&
+          lngInput.value
+        );
       }
 
       function updateHiddenFields(lat, lng) {
@@ -230,7 +293,11 @@
         latInput.value = fixedLat;
         lngInput.value = fixedLng;
 
-        setStatus("Punto seleccionado: " + fixedLat + ", " + fixedLng, false);
+        setStatus(
+          "Punto seleccionado: " + fixedLat + ", " + fixedLng,
+          false
+        );
+
         updateConfirmState();
       }
 
@@ -238,9 +305,13 @@
         if (marker) {
           marker.setLatLng(latlng);
         } else {
-          marker = L.marker(latlng, { draggable: true }).addTo(map);
+          marker = L.marker(latlng, {
+            draggable: true
+          }).addTo(map);
+
           marker.on("dragend", function (ev) {
             var pos = ev.target.getLatLng();
+
             updateHiddenFields(pos.lat, pos.lng);
           });
         }
@@ -249,19 +320,24 @@
       }
 
       function initMap() {
-        if (typeof L === "undefined") return;
+        if (typeof L === "undefined") {
+          return;
+        }
 
         map = L.map("report-map", {
-  scrollWheelZoom: true,
-  zoomControl: true,
-  maxZoom: 21
-}).setView([10.6159, -66.8528], 15);
+          scrollWheelZoom: true,
+          zoomControl: true,
+          maxZoom: 21
+        }).setView([10.6159, -66.8528], 15);
 
-L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-  attribution: '&copy; OpenStreetMap contributors',
-  maxNativeZoom: 19,
-  maxZoom: 21
-}).addTo(map);
+        L.tileLayer(
+          "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+          {
+            attribution: "&copy; OpenStreetMap contributors",
+            maxNativeZoom: 19,
+            maxZoom: 21
+          }
+        ).addTo(map);
 
         map.on("click", function (e) {
           placeMarker(e.latlng);
@@ -273,31 +349,47 @@ L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
       }
 
       function ensureTallyScript(callback) {
-        if (window.Tally && typeof window.Tally.loadEmbeds === "function") {
+        if (
+          window.Tally &&
+          typeof window.Tally.loadEmbeds === "function"
+        ) {
           tallyLoaded = true;
           callback();
           return;
         }
 
-        if (document.querySelector('script[src="' + TALLY_SCRIPT_SRC + '"]')) {
+        if (
+          document.querySelector(
+            'script[src="' + TALLY_SCRIPT_SRC + '"]'
+          )
+        ) {
           callback();
           return;
         }
 
         var s = document.createElement("script");
+
         s.src = TALLY_SCRIPT_SRC;
+
         s.onload = function () {
           tallyLoaded = true;
           callback();
         };
+
         s.onerror = function () {
-          setStatus("No se pudo cargar el formulario en este momento.", true);
+          setStatus(
+            "No se pudo cargar el formulario en este momento.",
+            true
+          );
         };
+
         document.body.appendChild(s);
       }
 
       function renderTallyEmbedWithCoordinates() {
-        var base = tallyIframe.getAttribute("data-base-src") || "";
+        var base =
+          tallyIframe.getAttribute("data-base-src") || "";
+
         var parts = base.split("?");
         var urlBase = parts[0];
         var params = new URLSearchParams(parts[1] || "");
@@ -307,10 +399,14 @@ L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
           params.set("longitud", lngInput.value);
         }
 
-        tallyIframe.src = urlBase + "?" + params.toString();
+        tallyIframe.src =
+          urlBase + "?" + params.toString();
 
         ensureTallyScript(function () {
-          if (window.Tally && typeof window.Tally.loadEmbeds === "function") {
+          if (
+            window.Tally &&
+            typeof window.Tally.loadEmbeds === "function"
+          ) {
             window.Tally.loadEmbeds();
           }
         });
@@ -318,27 +414,44 @@ L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
 
       confirmButton.addEventListener("click", function () {
         if (!latInput.value || !lngInput.value) {
-          setStatus("Debes seleccionar una ubicación en el mapa antes de continuar.", true);
+          setStatus(
+            "Debes seleccionar una ubicación en el mapa antes de continuar.",
+            true
+          );
+
           return;
         }
 
         confirmButton.classList.add("is-confirmed");
         confirmButton.textContent = "Confirmada";
-        setStatus("Ubicación confirmada. Ahora completa el formulario.", false);
+
+        setStatus(
+          "Ubicación confirmada. Ahora completa el formulario.",
+          false
+        );
+
         renderTallyEmbedWithCoordinates();
       });
 
       document.addEventListener("DOMContentLoaded", function () {
         initMap();
+
         ensureTallyScript(function () {
           renderTallyEmbedWithCoordinates();
         });
-        setStatus("Todavía no se ha seleccionado un punto.", false);
+
+        setStatus(
+          "Todavía no se ha seleccionado un punto.",
+          false
+        );
+
         updateConfirmState();
       });
 
       window.addEventListener("resize", function () {
-        if (map) map.invalidateSize();
+        if (map) {
+          map.invalidateSize();
+        }
       });
     })();
   </script>
